@@ -55,9 +55,7 @@ ppiDCE/
 |-- inference_ppiDCE.py                # Batch inference script
 |-- roc_analysis_color_threshold_F1e.py  # ROC curve analysis with F1 optimization
 |-- assets/
-|   |-- ppiDCE.png                     # Model architecture diagram
-|   |-- ppiDCE_architecture.svg        # Detailed architecture flow (SVG)
-|   +-- ppiDCE_architecture.png        # Detailed architecture flow (PNG)
+|   +-- ppiDCE.png                     # ASCII workflow diagram
 |-- requirements.txt
 |-- LICENSE
 +-- README.md
@@ -130,9 +128,9 @@ The input CSV should have two columns: PRS (positive) and RRS (random/negative) 
 
 ## Architecture Diagram
 
-See `assets/ppiDCE_architecture.svg` for a detailed flow diagram covering:
-- **A.** Model architecture (cross-encoding strategy)
-- **B.** Cross-encoding vs single-sequence comparison
+The ASCII workflow diagram (`assets/ppiDCE.png`) covers:
+- **A.** Cross-encoding input strategy
+- **B.** Model architecture (ESM-1b backbone + classification head)
 - **C.** Training pipeline
 - **D.** Inference pipeline
 
