@@ -92,7 +92,9 @@ python train_ppiDCE.py \
 
 #### Key training options
 
-- `--from_scratch`: Initialize ESM backbone with random weights (recommended for PPI)
+- `--from_scratch`: Initialize the ESM backbone with random weights instead of
+  loading pretrained ESM-1b. Useful when you suspect single-sequence
+  pretraining priors are inappropriate for your task.
 - `--num_layers N`: Set total transformer layers when training from scratch
 - `--freeze_layers N`: Freeze bottom N layers during fine-tuning
 - `--add_layers N`: Append extra transformer layers on top
@@ -133,6 +135,10 @@ The ASCII workflow diagram (`assets/ppiDCE.png`) covers:
 - **B.** Model architecture (ESM-1b backbone + classification head)
 - **C.** Training pipeline
 - **D.** Inference pipeline
+
+> Note: the diagram shows Softmax in the classification head for clarity, but
+> the implementation returns raw logits — softmax is applied implicitly by
+> CrossEntropyLoss during training and explicitly during inference.
 
 ## Citation
 

@@ -14,8 +14,13 @@ Usage example:
       --max_length 1024 \
       --device cuda
 
-example:
-python inference_ppiDCE.py --model_path out_MED4_L4/ppiDCE_final.pth --model_config facebook/esm1b_t33_650M_UR50S --input_file generated_prompts_MED4-PPIs-low-confidence_ppiTEPM_cleaned2_prompts.csv --output_file ppi_out_MED4_4L_e15/preds_MED4_LowConf_L4_e15.csv --batch_size 4 --max_length 1024 --device cuda
+# Example:
+#   python inference_ppiDCE.py \
+#       --model_path out/ppiDCE_final.pth \
+#       --model_config facebook/esm1b_t33_650M_UR50S \
+#       --input_file test_pairs.csv \
+#       --output_file predictions.csv \
+#       --batch_size 4 --max_length 1024 --device cuda
 
 """
 import argparse

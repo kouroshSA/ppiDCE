@@ -1,49 +1,15 @@
 #!/usr/bin/env python3
 """
-ppiDCE: Dual Cross-Encoder for PPI Classification
+ppiDCE: Dual Cross-Encoder for PPI Classification.
 
-***************DEPENDENCY INSTALLATION********************************************************************
-Make a new conda env with python 3.10, e.g., $conda create -n esm python=3.10, then $conda activate esm
-pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu117
-pip install pandas
-pip install fair-esm #Install the ESM Library
-pip install biopython
-pip install transformers
-conda install tqdm
-********************************************************************************************************
+Dependencies
+------------
+    conda create -n esm python=3.10 && conda activate esm
+    pip install torch        # pick the CUDA build that matches your driver
+    pip install transformers pandas tqdm
 
-
-This script trains or fine-tunes the ppiDCE model—a dual cross-encoder built on ESM—for protein-protein interaction classification.
-
-Features:
- - Uses ESM tokenizer and model backbone
- - 3-column CSV input: protein1, protein2, label (0 or 1)
- - Optional training from scratch (`--from_scratch`) or loading pretrained ESM backbone
- - Specify total transformer layers with `--num_layers` when starting from scratch
- - Optional freezing of bottom transformer layers
- - Optional addition of extra transformer layers on top of base model
- - Optional suppressing of tokenizer warnings (`--suppress_warnings`)
- - Automatically extends positional embeddings if `--max_length` exceeds default model limit
- - Optional loading from checkpoint for continued training
-
-Example:
-```bash
-# Run training from scratch with 12 layers + 2 appended layers, suppressing warnings:
-python train_ppiDCE.py \
-  --train_file train.csv \
-  --val_file val.csv \
-  --model_config facebook/esm1b_t33_650M_UR50S \
-  --from_scratch \
-  --num_layers 12 \
-  --add_layers 2 \
-  --suppress_warnings \
-  --epochs 5 \
-  --batch_size 8 \
-  --learning_rate 2e-5 \
-  --max_length 2048 \
-  --output_dir ./out \
-  --device cuda
-```
+(Both training and inference use only the transformers and pandas packages
+beyond PyTorch.)
 """
 import argparse
 import os

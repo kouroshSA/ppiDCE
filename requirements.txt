@@ -5,5 +5,3 @@ tqdm
 numpy
 matplotlib
 scikit-learn
-fair-esm
-biopython
