@@ -9,6 +9,10 @@ out_*/
 *.bin
 *.pkl
 !requirements.txt
+# Reference / inference CSVs that ship with the repo
+!MED4_PRS_100.csv
+!MED4_RRS_100.csv
+!MED4-PPIs-low-confidence_ppiTEPM_prompts.csv
 
 # Python
 __pycache__/
