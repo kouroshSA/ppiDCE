@@ -1,12 +1,27 @@
+---
+license: mit
+library_name: pytorch
+tags:
+  - protein-protein-interaction
+  - ppi
+  - protein-language-model
+  - esm-architecture
+  - cross-encoder
+  - trained-from-scratch
+  - bioinformatics
+  - biology
+pipeline_tag: feature-extraction
+---
+
 # ppiDCE
 
-A dual cross-encoder for binary protein-protein interaction (PPI) classification, built on ESM-1b ([Rives et al., 2021](https://doi.org/10.1073/pnas.2016239118)).
+A dual cross-encoder for binary protein-protein interaction (PPI) classification, inspired by the ESM-1b transformer architecture ([Rives et al., 2021](https://doi.org/10.1073/pnas.2016239118)) but **substantially modified and trained from scratch** rather than fine-tuned from the released ESM-1b checkpoint.
 
 ![ppiDCE Architecture](assets/ppiDCE.png)
 
 ## Overview
 
-ppiDCE repurposes ESM-1b -- a single-sequence masked language model with no native PPI capability -- for protein-protein interaction prediction by exploiting its tokenizer's sentence-pair encoding mode. Both protein sequences are concatenated into a single input as `[CLS] Seq_A [SEP] Seq_B [EOS]`, enabling full bidirectional cross-attention between the two sequences at every transformer layer. The `[CLS]` token representation from the final layer captures joint inter-protein features and is passed through a dropout + linear classification head to produce binary interaction predictions with softmax probabilities.
+ppiDCE adapts the ESM-1b transformer architecture -- a single-sequence masked language model with no native PPI capability -- for protein-protein interaction prediction by exploiting the tokenizer's sentence-pair encoding mode and training the modified model from scratch on PPI data. Both protein sequences are concatenated into a single input as `[CLS] Seq_A [SEP] Seq_B [EOS]`, enabling full bidirectional cross-attention between the two sequences at every transformer layer. The `[CLS]` token representation from the final layer captures joint inter-protein features and is passed through a dropout + linear classification head to produce binary interaction predictions with softmax probabilities.
 
 The model was developed for the *Prochlorococcus marinus* MED4 interactome, where it serves as one component of a tri-model consensus framework (alongside [ppiGPLM](https://github.com/kouroshSA/ppiGPLM) and [ppiBTEP](https://github.com/kouroshSA/ppiBTEP)) for computational PPI screening.
 
@@ -14,7 +29,7 @@ The model was developed for the *Prochlorococcus marinus* MED4 interactome, wher
 
 | Parameter | Value |
 |-----------|-------|
-| Foundation | ESM-1b (facebook/esm1b_t33_650M_UR50S) |
+| Foundation | ESM-1b-inspired transformer (Rives et al., 2021) -- substantially modified, trained from scratch |
 | Strategy | Cross-encoding (sentence-pair) |
 | Layers | 12 (configurable) |
 | Classification | [CLS] -> Dropout(0.1) -> Linear -> 2 |
@@ -132,7 +147,7 @@ The input CSV should have two columns: PRS (positive) and RRS (random/negative) 
 
 The ASCII workflow diagram (`assets/ppiDCE.png`) covers:
 - **A.** Cross-encoding input strategy
-- **B.** Model architecture (ESM-1b backbone + classification head)
+- **B.** Model architecture (ESM-1b-style backbone + classification head)
 - **C.** Training pipeline
 - **D.** Inference pipeline
 
