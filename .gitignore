@@ -3,6 +3,9 @@
 *.pt
 out/
 out_*/
+# Released checkpoints under checkpoints/ are tracked (on Hugging Face)
+!checkpoints/*.pth
+!checkpoints/*.pt
 
 # Data files
 *.csv
