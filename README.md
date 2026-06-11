@@ -116,6 +116,28 @@ python train_ppiDCE.py \
 - `--checkpoint path.pth`: Resume from a saved checkpoint
 - `--suppress_warnings`: Suppress tokenizer truncation warnings
 
+#### Training for ROC analysis
+
+The command below trains the 12-layer model from scratch and is used to
+generate the checkpoints for the ROC analysis. Checkpoints are written to
+`ROC_Checkpoints/` (one per epoch, plus `ppiDCE_final.pth`).
+
+```bash
+python train_ppiDCE.py \
+    --train_file train.clean2x.csv \
+    --val_file val_MED4_100_Y2H-RND_ppiBRTPM.csv \
+    --model_config facebook/esm1b_t33_650M_UR50S \
+    --from_scratch \
+    --num_layers 12 \
+    --epochs 20 \
+    --batch_size 2 \
+    --learning_rate 2e-5 \
+    --max_length 1024 \
+    --output_dir ROC_Checkpoints \
+    --suppress_warnings \
+    --device cuda
+```
+
 ### Quick start: fetch the checkpoint from Hugging Face
 
 The released MED4 checkpoint (`checkpoints/ppiDCE_epoch8.pth`, 12-layer)
