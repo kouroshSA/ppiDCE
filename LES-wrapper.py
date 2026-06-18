@@ -303,15 +303,19 @@ def run_roc_analysis_internal(combined_csv_path, output_plot_path,
     tpr = tpr[valid_thresholds_idxs]
     thresholds = thresholds[valid_thresholds_idxs]
 
-    # Best F1 over candidate thresholds.
+    # Best F1 over ALL candidate thresholds — every unique score, not just the
+    # ROC vertices. roc_curve(drop_intermediate=True) prunes collinear vertices
+    # from `thresholds`; scanning the full unique-score set guarantees the true
+    # F1-optimal cutoff is considered. Decision rule: prob >= threshold =>
+    # positive (matches roc_curve / the screening pipeline). Among ties, the
+    # highest (most stringent) threshold is kept.
     best_f1 = -1.0
     best_thresh = None
-    for thresh in thresholds:
-        predicted_labels = (probs >= thresh).astype(int)
-        current_f1 = f1_score(labels, predicted_labels)
-        if current_f1 > best_f1:
+    for thresh in np.unique(probs):
+        current_f1 = f1_score(labels, (probs >= thresh).astype(int), zero_division=0)
+        if current_f1 >= best_f1:
             best_f1 = current_f1
-            best_thresh = thresh
+            best_thresh = float(thresh)
 
     # ROC plot. Default: clean single-color curve. With color_threshold: the
     # curve is colored by decision threshold and a colorbar is added.
