@@ -21,7 +21,7 @@ A dual cross-encoder for binary protein-protein interaction (PPI) classification
 
 ## Overview
 
-ppiDCE adapts the ESM-1b transformer architecture -- a single-sequence masked language model with no native PPI capability -- for protein-protein interaction prediction by exploiting the tokenizer's sentence-pair encoding mode and training the modified model from scratch on PPI data. Both protein sequences are concatenated into a single input as `[CLS] Seq_A [SEP] Seq_B [EOS]`, enabling full bidirectional cross-attention between the two sequences at every transformer layer. The `[CLS]` token representation from the final layer captures joint inter-protein features and is passed through a dropout + linear classification head to produce binary interaction predictions with softmax probabilities.
+ppiDCE adapts the ESM-1b transformer architecture -- a single-sequence masked language model with no native PPI capability -- for protein-protein interaction prediction by exploiting the tokenizer's sentence-pair encoding mode and training the modified model from scratch on PPI data. Both protein sequences are concatenated into a single input as `[CLS] Seq_A [SEP] Seq_B [EOS]`, so the encoder's bidirectional self-attention spans the joint sequence and the two proteins attend to one another at every layer (inter-protein attention; this is the cross-encoder property, not a separate cross-attention module). The `[CLS]` token representation from the final layer captures joint inter-protein features and is passed through a dropout + linear classification head to produce binary interaction predictions with softmax probabilities.
 
 The model was developed for the *Prochlorococcus marinus* MED4 interactome, where it serves as one component of a tri-model consensus framework (alongside [ppiGPLM](https://github.com/kouroshSA/ppiGPLM) and [ppiBTEP](https://github.com/kouroshSA/ppiBTEP)) for computational PPI screening.
 
@@ -29,7 +29,7 @@ The model was developed for the *Prochlorococcus marinus* MED4 interactome, wher
 
 | Parameter | Value |
 |-----------|-------|
-| Foundation | ESM-1b-inspired transformer (Rives et al., 2021) -- substantially modified, trained from scratch |
+| Foundation | BERT/ESM-1 base — ESM-1b-architecture transformer (Rives et al., 2021), substantially modified, trained from scratch (not the released ESM-1b weights) |
 | Strategy | Cross-encoding (sentence-pair) |
 | Layers | 12 (configurable) |
 | Classification | [CLS] -> Dropout(0.1) -> Linear -> 2 |
@@ -184,7 +184,7 @@ The input CSV should have two columns: PRS (positive) and RRS (random/negative) 
 
 The ASCII workflow diagram (`assets/ppiDCE.png`) covers:
 - **A.** Cross-encoding input strategy
-- **B.** Model architecture (ESM-1b-style backbone + classification head)
+- **B.** Model architecture (BERT/ESM-1 base backbone + classification head)
 - **C.** Training pipeline
 - **D.** Inference pipeline
 
