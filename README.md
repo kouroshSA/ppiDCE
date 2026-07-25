@@ -149,9 +149,9 @@ MQAG...PIA,MTRRL...EEP
 
 A ready-made example is shipped with the repo:
 [`MED4-PPIs-low-confidence_ppiTEPM_prompts.csv`](MED4-PPIs-low-confidence_ppiTEPM_prompts.csv).
-The labeled PRS/RRS reference sets (`MED4_PRS_100.csv`, `MED4_RRS_100.csv`)
-include a third label column, which the inference script ignores — only
-the first two columns are read.
+The PRS/RRS reference sets ship in [`MED4_PRS-RRS/`](MED4_PRS-RRS) — 10 matched
+replicates, `PRS-V3-{1..10}.csv` / `RRS-V3-{1..10}.csv`, each two columns
+(`seq1,seq2`), 100 pairs, no label column.
 
 ### Inference
 

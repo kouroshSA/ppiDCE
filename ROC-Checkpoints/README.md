@@ -54,8 +54,8 @@ folder and supply a PRS (Positive Reference Set) and RRS (Random Reference Set):
 ```bash
 python LES-wrapper.py \
     --checkpoint_dir ROC-Checkpoints \
-    --prs_file MED4_PRS_100.csv \
-    --rrs_file MED4_RRS_100.csv \
+    --prs_file MED4_PRS-RRS/PRS-V3-1.csv \
+    --rrs_file MED4_PRS-RRS/RRS-V3-1.csv \
     --output_dir LES_results --include_final
 ```
 
