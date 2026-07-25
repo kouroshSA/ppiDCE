@@ -12,6 +12,7 @@ Dependencies
 beyond PyTorch.)
 """
 import argparse
+import math
 import os
 import torch
 import torch.nn as nn
@@ -54,7 +55,23 @@ def parse_args():
     parser.add_argument('--batch_size',       type=int,   default=8,
                         help='Batch size for train/validation')
     parser.add_argument('--learning_rate',    type=float, default=2e-5,
-                        help='Learning rate')
+                        help='Learning rate. With --lr_schedule warmup_cosine this is the '
+                             'PEAK reached at the end of warmup.')
+    # LR schedule (ported from ppiYYD; stepped PER ITERATION, mirrors nanoGPT get_lr)
+    parser.add_argument('--lr_schedule',      type=str, default='constant',
+                        choices=['constant', 'warmup_cosine'],
+                        help="LR schedule, stepped per optimizer step. 'constant' (default) "
+                             "holds --learning_rate. 'warmup_cosine' ramps 0->peak over the "
+                             "warmup, then cosine-decays peak->--min_lr over the rest.")
+    parser.add_argument('--warmup_ratio',     type=float, default=0.1,
+                        help='warmup_cosine: warmup length as a fraction of total steps '
+                             '(default 0.1 = 1 epoch of a 10-epoch run). Overridden by '
+                             '--warmup_steps.')
+    parser.add_argument('--warmup_steps',     type=int, default=None,
+                        help='warmup_cosine: explicit warmup length in iterations '
+                             '(overrides --warmup_ratio).')
+    parser.add_argument('--min_lr',           type=float, default=0.0,
+                        help='warmup_cosine: floor the cosine decays to (e.g. 2e-6).')
     parser.add_argument('--max_length',       type=int,   default=1024,
                         help='Max total tokens (seq1+seq2+special)')
     # Runtime
@@ -188,6 +205,27 @@ def main():
     optimizer = torch.optim.AdamW(filter(lambda p: p.requires_grad, model.parameters()), lr=args.learning_rate)
     criterion = nn.CrossEntropyLoss()
 
+    # per-iteration LR schedule (mirrors nanoGPT get_lr(it) and ppiYYD): linear
+    # warmup 0->peak, then cosine decay peak->min_lr. Stepped once per optimizer step.
+    scheduler = None
+    if args.lr_schedule == 'warmup_cosine':
+        total_steps = args.epochs * len(train_loader)
+        warmup = (args.warmup_steps if args.warmup_steps is not None
+                  else int(round(args.warmup_ratio * total_steps)))
+        peak, floor = args.learning_rate, args.min_lr
+
+        def lr_lambda(step):                       # returns lr(step)/peak
+            if step < warmup:
+                return (step + 1) / (warmup + 1)
+            dr = min(1.0, (step - warmup) / max(1, total_steps - warmup))
+            coeff = 0.5 * (1.0 + math.cos(math.pi * dr))    # 1 -> 0
+            return (floor + coeff * (peak - floor)) / peak
+
+        scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
+        print(f"LR schedule: warmup_cosine | peak={peak:g} min={floor:g} "
+              f"warmup={warmup} steps ({warmup/len(train_loader):.2f} epoch) "
+              f"total={total_steps} steps (per-iteration)")
+
     os.makedirs(args.output_dir, exist_ok=True)
 
     # Training & validation
@@ -201,8 +239,10 @@ def main():
             loss = criterion(logits, batch['labels'].to(device))
             loss.backward()
             optimizer.step()
+            if scheduler is not None:
+                scheduler.step()               # per-iteration LR update
             total_loss += loss.item()
-        print(f"Train loss: {total_loss/len(train_loader):.4f}")
+        print(f"Train loss: {total_loss/len(train_loader):.4f}  (lr={optimizer.param_groups[0]['lr']:.3e})")
 
         model.eval()
         val_loss, correct, total = 0, 0, 0
