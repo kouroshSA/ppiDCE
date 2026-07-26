@@ -4,6 +4,16 @@ inference_ppiDCE.py
 
 Inference script for ppiDCE cross-encoder PPI classifier.
 
+Inputs
+------
+CSV with at least 2 columns: seq1, seq2 (any other column, e.g. a label, is
+ignored).
+
+Outputs
+-------
+CSV with columns: seq1, seq2, Prediction, Probability_Friends, Probability_Enemies
+(matches the ppiYYD / ppiBTEP inference convention).
+
 Usage example:
     python inference_ppiDCE.py \
       --model_path path/to/ppiDCE_final.pth \
@@ -13,15 +23,6 @@ Usage example:
       --batch_size 4 \
       --max_length 1024 \
       --device cuda
-
-# Example:
-#   python inference_ppiDCE.py \
-#       --model_path out/ppiDCE_final.pth \
-#       --model_config facebook/esm1b_t33_650M_UR50S \
-#       --input_file test_pairs.csv \
-#       --output_file predictions.csv \
-#       --batch_size 4 --max_length 1024 --device cuda
-
 """
 import argparse
 import os
@@ -139,13 +140,19 @@ def main():
             preds.extend(pred.cpu().tolist())
             probs.extend(p.cpu().tolist())
 
-    # assemble output
-    df = pd.read_csv(args.input_file)
-    df['pred_label'] = preds
-    df['prob_0'] = [p[0] for p in probs]
-    df['prob_1'] = [p[1] for p in probs]
+    # assemble output (ppiYYD / ppiBTEP convention: seq1, seq2, Prediction,
+    # Probability_Friends, Probability_Enemies)
+    label_map = {0: 'enemies', 1: 'friends'}
+    src = pd.read_csv(args.input_file)
+    out = pd.DataFrame({
+        'seq1': src.iloc[:, 0],
+        'seq2': src.iloc[:, 1],
+        'Prediction': [label_map[p] for p in preds],
+        'Probability_Friends': [p[1] for p in probs],
+        'Probability_Enemies': [p[0] for p in probs],
+    })
     os.makedirs(os.path.dirname(args.output_file) or '.', exist_ok=True)
-    df.to_csv(args.output_file, index=False)
+    out.to_csv(args.output_file, index=False)
     print(f"Saved inference results to {args.output_file}")
 
 if __name__ == '__main__':

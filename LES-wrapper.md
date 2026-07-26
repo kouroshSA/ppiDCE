@@ -11,9 +11,9 @@ This is the ppiDCE port of the LES-wrapper family
 ([ppiGPLM](https://github.com/kouroshSA/ppiGPLM),
 [ppiBTEP](https://github.com/kouroshSA/ppiBTEP),
 [ppiYYD](https://github.com/kouroshSA/ppiYYD)). The evaluation logic (PRS/RRS →
-`prob_1` → ROC → AUC/Best-F1 → LES) is identical; only the model-specific glue
-differs. **Its outputs match ppiGPLM's `LES-wrapper_v2.py`** — see
-[Differences from the other wrappers](#differences-from-the-other-wrappers).
+`Probability_Friends` → ROC → AUC/Best-F1 → LES) is identical; only the
+model-specific glue differs. **Its outputs match ppiGPLM's `LES-wrapper_v2.py`**
+— see [Differences from the other wrappers](#differences-from-the-other-wrappers).
 
 ## What is LES?
 
@@ -40,7 +40,7 @@ consistent learning across training.
 For each checkpoint the wrapper:
 
 1. Runs `inference_ppiDCE.py` on the PRS and RRS files
-2. Extracts the positive-class probability (`prob_1`) for every pair
+2. Extracts the positive-class probability (`Probability_Friends`) for every pair
 3. Combines PRS and RRS probabilities into a single file for ROC analysis
 4. Draws a per-checkpoint probability-distribution plot (PRS vs RRS violins)
 5. Computes AUC and Best-F1 and renders the ROC curve
@@ -146,9 +146,9 @@ enlarged fonts, heavier axis lines), and every PNG has a companion vector
 by default the ROC curve is a single color with no threshold colorbar — pass
 `--color_threshold` to render the threshold-colored curve.
 
-The probability-distribution figures show `prob_1` for PRS (blue, positives) vs
-RRS (red, negatives) as violins + jittered points, y-axis fixed to `[0, 1]`. A
-discriminating model keeps PRS high and RRS low.
+The probability-distribution figures show `Probability_Friends` for PRS (blue,
+positives) vs RRS (red, negatives) as violins + jittered points, y-axis fixed
+to `[0, 1]`. A discriminating model keeps PRS high and RRS low.
 
 ## Output Structure
 
@@ -157,7 +157,7 @@ LES_results_MED4/
 ├── epoch_1/
 │   ├── PRS_epoch1_probabilities.csv        # full inference_ppiDCE.py output
 │   ├── RRS_epoch1_probabilities.csv
-│   ├── combined_probabilities_epoch1.csv   # PRS,RRS prob_1 columns for ROC
+│   ├── combined_probabilities_epoch1.csv   # PRS,RRS Probability_Friends columns for ROC
 │   ├── prob_dist_epoch1.png / .pdf         # PRS-vs-RRS distribution
 │   └── ROC_epoch1.png / .pdf
 ├── epoch_2/ ...
@@ -188,15 +188,13 @@ RRS_samples` plus a final LES row. `manifest.json` records run metadata
 | Checkpoints | `ckpt_*.pt` (iterations) | `ppiBTPE_epoch_*.pth` | `ppiDCE_epoch*.pth` (+ `ppiDCE_final.pth`) |
 | Trajectory x-axis | iteration | epoch | **epoch** |
 | Inference engine | `sample_fasta…3f.py` | `inference_ppiBTPE_2GPU.py` (requires `--num_layers`) | `inference_ppiDCE.py` (`--model_path`/`--model_config`/`--output_file`) |
-| Positive-class prob | `Probability_of_1` → `[-2]` | `Probability_Friends` (2nd-to-last) | `prob_1` read **by name** (**last** column) |
+| Positive-class prob | `Probability_of_1` → `[-2]` | `Probability_Friends` (2nd-to-last) | `Probability_Friends` read **by name** (2nd-to-last column) |
 | Output shape | v2 (no threshold, PDFs, prob-dist plots, README) | v2 | **v2** (matches ppiGPLM) |
 
-Two model-specific notes for ppiDCE:
+One model-specific note for ppiDCE:
 
-- **Score meaning.** `prob_1` is a genuine 2-class softmax over `{0, 1}`, so
-  `prob_0 + prob_1 = 1` exactly — unlike ppiGPLM's whole-vocabulary language-model
-  softmax where `P(1)` and `P(0)` need not sum to 1. The `README.md` written into
-  each output dir explains this.
-- **Column position.** The positive-class probability is the column literally
-  named `prob_1`, which is the **last** column (falling back to the last column if
-  the header is absent) — the opposite end from ppiBTEP's `Probability_Friends`.
+- **Score meaning.** `Probability_Friends` is a genuine 2-class softmax over
+  `{0, 1}`, so `Probability_Friends + Probability_Enemies = 1` exactly — unlike
+  ppiGPLM's whole-vocabulary language-model softmax where `P(1)` and `P(0)` need
+  not sum to 1. The `README.md` written into each output dir explains this.
+  Column naming and position now match ppiBTEP / ppiYYD exactly.

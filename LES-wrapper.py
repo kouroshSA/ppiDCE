@@ -13,10 +13,12 @@ This is the ppiDCE port of the LES-wrapper family. Two things about it:
   1. Model-specific glue. ppiDCE saves one checkpoint per epoch as
      `ppiDCE_epoch{N}.pth` plus `ppiDCE_final.pth`, so the x-axis of every LES
      curve is the training *epoch*. Inference uses `inference_ppiDCE.py`, whose
-     output columns are `seq1, seq2, [label,] pred_label, prob_0, prob_1` — so
-     the positive-class probability is the column named `prob_1`, the **last**
-     column. This wrapper reads `prob_1` by name (with a positional last-column
-     fallback).
+     output columns are `seq1, seq2, Prediction, Probability_Friends,
+     Probability_Enemies` (the ppiYYD / ppiBTEP convention) — so the
+     positive-class ("friends" = interacting = label 1) probability is the
+     column named `Probability_Friends`, the **second-to-last** column. This
+     wrapper reads `Probability_Friends` by name (with a positional
+     second-to-last-column fallback).
 
   2. Output shape follows ppiGPLM's LES-wrapper_v2.py (the deliberate port
      target). Relative to the earlier ppiDCE/ppiBTEP wrapper, the outputs here
@@ -209,10 +211,12 @@ def run_inference(inference_script, ckpt_path, input_file, output_csv,
 def extract_probabilities_from_csv(csv_path):
     """Extract the positive-class probability from a ppiDCE inference CSV.
 
-    ppiDCE writes columns: seq1, seq2, [label,] pred_label, prob_0, prob_1.
-    The positive-class probability is the column named `prob_1` (also the last
-    column). Sequences contain no commas, so a positional fallback to the last
-    column is safe if the header is ever missing.
+    ppiDCE writes columns: seq1, seq2, Prediction, Probability_Friends,
+    Probability_Enemies (the ppiYYD / ppiBTEP convention). The positive-class
+    ("friends" = interacting = label 1) probability is the column named
+    `Probability_Friends` — the second-to-last column. Sequences contain no
+    commas, so a positional fallback to the second-to-last column is safe if
+    the header is ever missing.
     """
     probabilities = []
     if not os.path.exists(csv_path):
@@ -222,21 +226,21 @@ def extract_probabilities_from_csv(csv_path):
     with open(csv_path, 'r', newline='') as f:
         reader = csv.reader(f)
         header = next(reader, None)
-        prob1_idx = None
+        prob_idx = None
         if header is not None:
             for i, col in enumerate(header):
-                if col.strip().lower() == 'prob_1':
-                    prob1_idx = i
+                if col.strip().lower() == 'probability_friends':
+                    prob_idx = i
                     break
-        # Fallback: positive-class prob is the last column.
-        if prob1_idx is None:
-            prob1_idx = -1
+        # Fallback: positive-class prob is the second-to-last column.
+        if prob_idx is None:
+            prob_idx = -2
 
         for row in reader:
             if not row:
                 continue
             try:
-                probabilities.append(float(row[prob1_idx]))
+                probabilities.append(float(row[prob_idx]))
             except (ValueError, IndexError):
                 continue
     return probabilities
@@ -567,8 +571,8 @@ def write_analysis_readme(output_dir):
 This folder is the Learning Efficiency Score (LES) analysis for one ppiDCE model
 evaluated on one PRS (Positive Reference Set) / RRS (Random Reference Set) pair,
 across all saved training checkpoints (one per epoch). **PRS = blue (positives);
-RRS = red (negatives).** The interaction score for each pair is `prob_1` in
-[0, 1] — see the next section for exactly what that is.
+RRS = red (negatives).** The interaction score for each pair is
+`Probability_Friends` in [0, 1] — see the next section for exactly what that is.
 
 ## What "probability" / `P(interaction)` means here (read this)
 The value on every y-axis — labelled `P(interaction)` — is **not** an empirical
@@ -580,17 +584,19 @@ classes `{0, 1}`. A softmax turns those into a probability for each class and we
 read off the mass on class `1`:
 
 ```
-P(interaction) = softmax(classifier logits)[ "1" ] = prob_1
+P(interaction) = softmax(classifier logits)[ "1" ] = Probability_Friends
 ```
 
-- It is a genuine 2-class softmax, so **`prob_0 + prob_1 = 1`** exactly. Both are
-  saved in each per-checkpoint `*_probabilities.csv`.
-- **It is `prob_1` for *both* PRS and RRS** — a single, shared score function, *not*
-  "`prob_1` for PRS and `prob_0` for RRS". That shared score is what makes the ROC/AUC
-  valid: every pair gets the same score `prob_1`, PRS pairs are labelled 1 and RRS
-  pairs 0, and AUC measures how well `prob_1` ranks true interactors above random
-  ones. A good model pushes `prob_1` high for PRS (blue, near 1) and low for RRS (red,
-  near 0). `prob_0` is recorded but is **not** used for AUC, F1, LES, or any plot.
+- It is a genuine 2-class softmax, so **`Probability_Friends + Probability_Enemies
+  = 1`** exactly. Both are saved in each per-checkpoint `*_probabilities.csv`.
+- **It is `Probability_Friends` for *both* PRS and RRS** — a single, shared score
+  function, *not* "`Probability_Friends` for PRS and `Probability_Enemies` for
+  RRS". That shared score is what makes the ROC/AUC valid: every pair gets the
+  same score `Probability_Friends`, PRS pairs are labelled 1 and RRS pairs 0, and
+  AUC measures how well `Probability_Friends` ranks true interactors above random
+  ones. A good model pushes `Probability_Friends` high for PRS (blue, near 1) and
+  low for RRS (red, near 0). `Probability_Enemies` is recorded but is **not** used
+  for AUC, F1, LES, or any plot.
 
 ## Summary figures (this folder)
 - **`trajectory_AUC.png`** — ROC-AUC vs training epoch (y-axis 0-1). Subtitle

@@ -174,7 +174,7 @@ python inference_ppiDCE.py \
     --device cuda
 ```
 
-Output CSV columns: `seq1, seq2, pred_label, prob_0, prob_1`
+Output CSV columns: `seq1, seq2, Prediction, Probability_Friends, Probability_Enemies`
 
 ### ROC Analysis
 
