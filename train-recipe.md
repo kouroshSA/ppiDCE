@@ -175,15 +175,15 @@ convention — see [LES-wrapper.md](LES-wrapper.md).
 | | LES-AUC | LES-F1 |
 |---|---|---|
 | Full PRS/RRS (`LES/`) | 0.7197 | 0.6967 |
-| No homodimers (`LES_no_homodimers/`) | **0.7806** | 0.6971 |
+| No homodimers (`LES_no_homodimers/`) | **0.7881** | 0.7051 |
 
 Per-epoch AUC on the full set hovered in a flat 0.69-0.72 band for all 10
 epochs with no clear trend; excluding homodimers pushed it to a similarly flat
-but consistently higher 0.755-0.795 band at *every* epoch (not just early
-ones) — a stable ~0.06-0.08 AUC gap across the whole run, not something that
-opens or closes over training. Best-F1 barely moves either way (~0.697 both
-LES values). Interpretation: the model's genuine heterodimer discrimination
-is meaningfully better than the combined metric shows; homodimer pairs are
+but consistently higher 0.76-0.80 band at *every* epoch (not just early
+ones) — a stable ~0.07-0.08 AUC gap across the whole run, not something that
+opens or closes over training. Best-F1 moves up slightly too (0.697 -> 0.705).
+Interpretation: the model's genuine heterodimer discrimination is
+meaningfully better than the combined metric shows; homodimer pairs are
 consistently the harder case it hasn't learned to separate from RRS.
 
 ---
