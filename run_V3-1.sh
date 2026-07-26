@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # run_V3-1.sh — ppiDCE V3-1 replicate: from-scratch 6-block training with the
-# ppiYYD warmup+cosine LR recipe, per-epoch ROC/Best-F1 analysis, and a final
+# ppiYYD warmup+cosine LR recipe (see train-recipe.md), a standard disjoint
+# 90/10 train/val split, per-epoch ROC/Best-F1 analysis, and a final
 # LES-wrapper pass over every saved checkpoint.
 #
-#   ./run_V3-1.sh                    # full run
+#   ./run_V3-1.sh                    # full run (max_length 512 by default)
+#   MAX_LENGTH=1024 ./run_V3-1.sh    # override max_length
 #   LES_ONLY=1 ./run_V3-1.sh         # rebuild the LES analysis from existing checkpoints
 #
 # Override the interpreter with PY=/path/to/python.
@@ -13,7 +15,8 @@ cd "$(dirname "$0")"
 
 PY="${PY:-/home/ksa/anaconda3/envs/esm2/bin/python}"
 REP="${REP:-V3-1}"
-OUT="${OUT:-results/dce_${REP}_scratch6L}"
+MAX_LENGTH="${MAX_LENGTH:-512}"
+OUT="${OUT:-results/dce_${REP}_scratch6L_ml${MAX_LENGTH}}"
 
 TRAIN_SRC="MED4_V3_Trains/depleted_training_set-${REP}.csv"
 PRS="MED4_PRS-RRS/PRS-${REP}.csv"
@@ -27,12 +30,11 @@ mkdir -p "$OUT/data" "$OUT/eval"
 
 if [[ "${LES_ONLY:-0}" != "1" ]]; then
   echo "=== ppiDCE ${REP} SPLIT $(date) ==="
-  # Val is SAMPLED from train but NOT removed from it: the eval pairs stay in
-  # train. The real holdout is PRS/RRS.
+  # Standard disjoint split: val rows are carved OUT of train.
   "$PY" make_split.py \
       --input "$TRAIN_SRC" \
       --output_dir "$OUT/data" \
-      --val_frac 0.1 --seed 42
+      --val_frac 0.1 --seed 42 --deplete
 
   echo
   echo "=== ppiDCE ${REP} TRAIN START $(date) ==="
@@ -41,7 +43,7 @@ if [[ "${LES_ONLY:-0}" != "1" ]]; then
       --val_file   "$OUT/data/val.csv" \
       --model_config facebook/esm1b_t33_650M_UR50S \
       --from_scratch --num_layers 6 \
-      --max_length 1024 \
+      --max_length "$MAX_LENGTH" \
       --epochs 10 --batch_size 4 \
       --lr_schedule warmup_cosine \
       --learning_rate 2e-5 --min_lr 2e-6 --warmup_ratio 0.1 \
@@ -61,7 +63,7 @@ echo "=== ppiDCE ${REP} LES START $(date) ==="
     --output_dir "$OUT/LES" \
     --model_config facebook/esm1b_t33_650M_UR50S \
     --num_layers 6 \
-    --max_length 1024 \
+    --max_length "$MAX_LENGTH" \
     --batch_size 4 \
     --device cuda \
     --include_final
