@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # run_V3-1.sh — ppiDCE V3-1 replicate: from-scratch 6-block training with the
-# ppiYYD warmup+cosine LR recipe (see train-recipe.md), a standard disjoint
-# 90/10 train/val split, per-epoch ROC/Best-F1 analysis, and a final
-# LES-wrapper pass over every saved checkpoint.
+# ppiYYD warmup+cosine LR recipe (see train-recipe.md), a 90/10 train/val
+# split (val sampled but kept in train — recommended for a small training set
+# like this one), per-epoch ROC/Best-F1 analysis, and a final LES-wrapper pass
+# over every saved checkpoint.
 #
-#   ./run_V3-1.sh                    # full run (max_length 512 by default)
-#   MAX_LENGTH=1024 ./run_V3-1.sh    # override max_length
+#   ./run_V3-1.sh                    # full run (max_length 1024 by default)
+#   MAX_LENGTH=512 ./run_V3-1.sh     # override max_length (expect more truncation — see train-recipe.md)
+#   DEPLETE=1 ./run_V3-1.sh          # carve val OUT of train instead (disjoint split)
 #   LES_ONLY=1 ./run_V3-1.sh         # rebuild the LES analysis from existing checkpoints
 #
 # Override the interpreter with PY=/path/to/python.
@@ -15,8 +17,13 @@ cd "$(dirname "$0")"
 
 PY="${PY:-/home/ksa/anaconda3/envs/esm2/bin/python}"
 REP="${REP:-V3-1}"
-MAX_LENGTH="${MAX_LENGTH:-512}"
+MAX_LENGTH="${MAX_LENGTH:-1024}"
 OUT="${OUT:-results/dce_${REP}_scratch6L_ml${MAX_LENGTH}}"
+
+DEPLETE_FLAG=()
+if [[ "${DEPLETE:-0}" == "1" ]]; then
+  DEPLETE_FLAG=(--deplete)
+fi
 
 TRAIN_SRC="MED4_V3_Trains/depleted_training_set-${REP}.csv"
 PRS="MED4_PRS-RRS/PRS-${REP}.csv"
@@ -30,11 +37,13 @@ mkdir -p "$OUT/data" "$OUT/eval"
 
 if [[ "${LES_ONLY:-0}" != "1" ]]; then
   echo "=== ppiDCE ${REP} SPLIT $(date) ==="
-  # Standard disjoint split: val rows are carved OUT of train.
+  # Val is sampled but kept in train by default — recommended for a small
+  # training set like this one (see train-recipe.md). Set DEPLETE=1 for the
+  # standard disjoint split instead.
   "$PY" make_split.py \
       --input "$TRAIN_SRC" \
       --output_dir "$OUT/data" \
-      --val_frac 0.1 --seed 42 --deplete
+      --val_frac 0.1 --seed 42 "${DEPLETE_FLAG[@]}"
 
   echo
   echo "=== ppiDCE ${REP} TRAIN START $(date) ==="
