@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# run_V3-1.sh — ppiDCE V3-1 replicate: from-scratch 6-block training with the
-# ppiYYD warmup+cosine LR recipe (see train-recipe.md), a 90/10 train/val
+# run_V3-1.sh — ppiDCE V3-1 replicate: from-scratch training (6 transformer
+# blocks by default) with the ppiYYD warmup+cosine LR recipe (see
+# train-recipe.md), a 90/10 train/val
 # split (val sampled but kept in train — recommended for a small training set
 # like this one), per-epoch ROC/Best-F1 analysis, and a final LES-wrapper pass
 # over every saved checkpoint.
 #
-#   ./run_V3-1.sh                    # full run (max_length 1024 by default)
+#   ./run_V3-1.sh                    # full run (max_length 1024, 6 layers, batch 4 by default)
 #   MAX_LENGTH=512 ./run_V3-1.sh     # override max_length (expect more truncation — see train-recipe.md)
+#   NUM_LAYERS=12 BATCH_SIZE=2 ./run_V3-1.sh   # override architecture / batch size
 #   DEPLETE=1 ./run_V3-1.sh          # carve val OUT of train instead (disjoint split)
 #   LES_ONLY=1 ./run_V3-1.sh         # rebuild the LES analysis from existing checkpoints
 #
@@ -18,7 +20,9 @@ cd "$(dirname "$0")"
 PY="${PY:-/home/ksa/anaconda3/envs/esm2/bin/python}"
 REP="${REP:-V3-1}"
 MAX_LENGTH="${MAX_LENGTH:-1024}"
-OUT="${OUT:-results/dce_${REP}_scratch6L_ml${MAX_LENGTH}}"
+NUM_LAYERS="${NUM_LAYERS:-6}"
+BATCH_SIZE="${BATCH_SIZE:-4}"
+OUT="${OUT:-results/dce_${REP}_scratch${NUM_LAYERS}L_ml${MAX_LENGTH}}"
 
 DEPLETE_FLAG=()
 if [[ "${DEPLETE:-0}" == "1" ]]; then
@@ -51,9 +55,9 @@ if [[ "${LES_ONLY:-0}" != "1" ]]; then
       --train_file "$OUT/data/train.csv" \
       --val_file   "$OUT/data/val.csv" \
       --model_config facebook/esm1b_t33_650M_UR50S \
-      --from_scratch --num_layers 6 \
+      --from_scratch --num_layers "$NUM_LAYERS" \
       --max_length "$MAX_LENGTH" \
-      --epochs 10 --batch_size 4 \
+      --epochs 10 --batch_size "$BATCH_SIZE" \
       --lr_schedule warmup_cosine \
       --learning_rate 2e-5 --min_lr 2e-6 --warmup_ratio 0.1 \
       --eval_prs "$PRS" --eval_rrs "$RRS" --eval_dir "$OUT/eval" \
@@ -71,9 +75,9 @@ echo "=== ppiDCE ${REP} LES START $(date) ==="
     --rrs_file "$RRS" \
     --output_dir "$OUT/LES" \
     --model_config facebook/esm1b_t33_650M_UR50S \
-    --num_layers 6 \
+    --num_layers "$NUM_LAYERS" \
     --max_length "$MAX_LENGTH" \
-    --batch_size 4 \
+    --batch_size "$BATCH_SIZE" \
     --device cuda \
     --include_final
 echo "=== ppiDCE ${REP} LES DONE $(date) ==="
