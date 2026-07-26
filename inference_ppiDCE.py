@@ -88,6 +88,10 @@ def main():
     parser.add_argument('--output_file', required=True, help='CSV to save predictions')
     parser.add_argument('--batch_size', type=int, default=4)
     parser.add_argument('--max_length', type=int, default=1024)
+    parser.add_argument('--num_layers', type=int, default=None,
+                        help='Transformer layers the checkpoint was trained with. REQUIRED for '
+                             'a from-scratch model with fewer layers than the pretrained config, '
+                             'otherwise the extra layers load as random weights (silent, wrong).')
     parser.add_argument('--device', type=str, default='cuda')
     args = parser.parse_args()
 
@@ -97,6 +101,9 @@ def main():
     # tokenizer + config
     tokenizer = EsmTokenizer.from_pretrained(args.model_config)
     config = EsmConfig.from_pretrained(args.model_config)
+    if args.num_layers is not None:
+        config.num_hidden_layers = args.num_layers
+        print(f"Overriding config to {args.num_layers} transformer layers.")
 
     # dataset + loader
     ds = PPICrossDataset(args.input_file, tokenizer, args.max_length)
@@ -109,6 +116,10 @@ def main():
     ckpt = torch.load(args.model_path, map_location='cpu')
     model_state = model.state_dict()
     filtered_ckpt = {k: v for k, v in ckpt.items() if k in model_state and v.size() == model_state[k].size()}
+    dropped = [k for k in ckpt if k not in filtered_ckpt]
+    if dropped:
+        print(f"WARNING: {len(dropped)}/{len(ckpt)} checkpoint keys NOT loaded (name/shape mismatch) "
+              f"- check --num_layers matches training. First: {dropped[:3]}")
     model_state.update(filtered_ckpt)
     model.load_state_dict(model_state)
 

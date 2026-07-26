@@ -120,6 +120,10 @@ Examples:
     parser.add_argument('--model_config', type=str,
                         default='facebook/esm1b_t33_650M_UR50S',
                         help='ESM model name or local path for tokenizer/config')
+    parser.add_argument('--num_layers', type=int, default=None,
+                        help='Transformer layers the checkpoint was trained with. REQUIRED for '
+                             'from-scratch models (e.g. 6); forwarded to inference_ppiDCE.py so '
+                             'the config is rebuilt to match, otherwise the load is silently wrong.')
     parser.add_argument('--batch_size', type=int, default=4,
                         help='Inference batch size (default: 4)')
     parser.add_argument('--max_length', type=int, default=1024,
@@ -175,7 +179,7 @@ def get_checkpoints(checkpoint_dir, pattern, include_final=False):
 
 
 def run_inference(inference_script, ckpt_path, input_file, output_csv,
-                  model_config, batch_size, max_length, device):
+                  model_config, batch_size, max_length, device, num_layers=None):
     """Run ppiDCE inference for one checkpoint, writing directly to output_csv."""
     cmd = [
         sys.executable, inference_script,
@@ -187,6 +191,8 @@ def run_inference(inference_script, ckpt_path, input_file, output_csv,
         '--max_length', str(max_length),
         '--device', device,
     ]
+    if num_layers is not None:
+        cmd += ['--num_layers', str(num_layers)]
 
     print(f"  Running: inference_ppiDCE.py --model_path {os.path.basename(ckpt_path)} "
           f"--input_file {os.path.basename(input_file)} ...")
@@ -698,13 +704,15 @@ def main():
         if not args.skip_inference:
             print(f"  Running PRS inference...")
             if not run_inference(inference_script, ckpt_path, args.prs_file, prs_csv,
-                                 args.model_config, args.batch_size, args.max_length, args.device):
+                                 args.model_config, args.batch_size, args.max_length, args.device,
+                                 num_layers=args.num_layers):
                 print(f"  SKIPPING checkpoint due to inference error")
                 continue
 
             print(f"  Running RRS inference...")
             if not run_inference(inference_script, ckpt_path, args.rrs_file, rrs_csv,
-                                 args.model_config, args.batch_size, args.max_length, args.device):
+                                 args.model_config, args.batch_size, args.max_length, args.device,
+                                 num_layers=args.num_layers):
                 print(f"  SKIPPING checkpoint due to inference error")
                 continue
 

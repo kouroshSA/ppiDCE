@@ -79,7 +79,51 @@ def parse_args():
                         help='Directory to save checkpoints and final model')
     parser.add_argument('--device',           type=str, default='cuda', choices=['cpu','cuda'],
                         help='Device for training')
+    # Per-epoch holdout eval on PRS/RRS reference sets (in-process, no GPU contention)
+    parser.add_argument('--eval_prs',         type=str, default=None,
+                        help='PRS holdout CSV (seq1,seq2) scored after each epoch for AUC/Best-F1.')
+    parser.add_argument('--eval_rrs',         type=str, default=None,
+                        help='RRS holdout CSV (seq1,seq2) scored after each epoch for AUC/Best-F1.')
+    parser.add_argument('--eval_dir',         type=str, default=None,
+                        help='Directory for metrics_by_epoch.csv (default: output_dir).')
     return parser.parse_args()
+
+
+def _read_pairs(csv_path):
+    """Read a headerless-or-headered 2-column (seq1,seq2) reference CSV -> (list1, list2)."""
+    df = pd.read_csv(csv_path, header=None)
+    if str(df.iloc[0, 0]).strip().lower() in ('seq1', 'sequence1', 'seq_a', 'protein1'):
+        df = df.iloc[1:].reset_index(drop=True)
+    return df.iloc[:, 0].astype(str).tolist(), df.iloc[:, 1].astype(str).tolist()
+
+
+@torch.no_grad()
+def _score_pairs(model, tokenizer, s1, s2, max_length, device, batch_size=8):
+    """P(interaction) = softmax(logits)[1] for each (seq1,seq2) pair, cross-encoded."""
+    model.eval()
+    out = []
+    for i in range(0, len(s1), batch_size):
+        enc = tokenizer(s1[i:i + batch_size], s2[i:i + batch_size], truncation=True,
+                        padding='max_length', max_length=max_length, return_tensors='pt')
+        logits = model(enc.input_ids.to(device), enc.attention_mask.to(device))
+        out.extend(torch.softmax(logits, dim=1)[:, 1].detach().cpu().tolist())
+    return out
+
+
+def _auc_bestf1(prs, rrs):
+    """ROC-AUC and Best-F1 (scanning every unique score) for PRS=1 / RRS=0."""
+    import numpy as np
+    from sklearn.metrics import roc_curve, auc as sk_auc, f1_score
+    probs = np.array(prs + rrs, dtype=float)
+    labels = np.array([1] * len(prs) + [0] * len(rrs))
+    fpr, tpr, _ = roc_curve(labels, probs)
+    a = float(sk_auc(fpr, tpr))
+    best_f1, best_t = -1.0, 0.0
+    for t in np.unique(probs):
+        f = f1_score(labels, (probs >= t).astype(int), zero_division=0)
+        if f >= best_f1:
+            best_f1, best_t = float(f), float(t)
+    return a, best_f1, best_t
 
 class PPICrossDataset(Dataset):
     def __init__(self, csv_file, tokenizer, max_length):
@@ -259,6 +303,25 @@ def main():
         ckpt_path = os.path.join(args.output_dir, f"ppiDCE_epoch{epoch}.pth")
         torch.save(model.module.state_dict() if hasattr(model,'module') else model.state_dict(), ckpt_path)
         print(f"Saved checkpoint: {ckpt_path}")
+
+        # Per-epoch holdout eval on PRS/RRS (what we actually care about): AUC + Best-F1.
+        if args.eval_prs and args.eval_rrs:
+            s1p, s2p = _read_pairs(args.eval_prs)
+            s1r, s2r = _read_pairs(args.eval_rrs)
+            prs = _score_pairs(model, tokenizer, s1p, s2p, args.max_length, device)
+            rrs = _score_pairs(model, tokenizer, s1r, s2r, args.max_length, device)
+            auc_v, f1_v, thr_v = _auc_bestf1(prs, rrs)
+            print(f"[epoch {epoch}] holdout PRS/RRS: AUC={auc_v:.4f} best_f1={f1_v:.4f} "
+                  f"thr={thr_v:.4f}  (PRS {len(prs)}, RRS {len(rrs)})")
+            ed = args.eval_dir or args.output_dir
+            os.makedirs(ed, exist_ok=True)
+            mp = os.path.join(ed, 'metrics_by_epoch.csv')
+            new = not os.path.exists(mp)
+            with open(mp, 'a') as fh:
+                if new:
+                    fh.write('epoch,auc,best_f1,threshold\n')
+                fh.write(f'{epoch},{auc_v:.6f},{f1_v:.6f},{thr_v:.6f}\n')
+            model.train()
 
     # Final save
     final_model = os.path.join(args.output_dir, "ppiDCE_final.pth")
