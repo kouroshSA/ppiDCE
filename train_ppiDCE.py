@@ -339,22 +339,28 @@ def main():
         print(f"Saved checkpoint: {ckpt_path}")
 
         # Per-epoch holdout eval on PRS/RRS (what we actually care about): AUC + Best-F1.
+        # The optimal-F1 threshold is deliberately NOT reported here — for a
+        # non-discriminating (or early-training) checkpoint it collapses toward
+        # the minimum score ("predict everything positive"), a degenerate
+        # diagnostic rather than a meaningful decision boundary. Matches
+        # LES-wrapper.py / roc_analysis_color_threshold_F1e.py, which drop it
+        # for the same reason (see LES-wrapper.md's "v2 change" note).
         if args.eval_prs and args.eval_rrs:
             s1p, s2p = _read_pairs(args.eval_prs)
             s1r, s2r = _read_pairs(args.eval_rrs)
             prs = _score_pairs(model, tokenizer, s1p, s2p, args.max_length, device)
             rrs = _score_pairs(model, tokenizer, s1r, s2r, args.max_length, device)
-            auc_v, f1_v, thr_v = _auc_bestf1(prs, rrs)
+            auc_v, f1_v, _ = _auc_bestf1(prs, rrs)
             print(f"[epoch {epoch}] holdout PRS/RRS: AUC={auc_v:.4f} best_f1={f1_v:.4f} "
-                  f"thr={thr_v:.4f}  (PRS {len(prs)}, RRS {len(rrs)})")
+                  f"(PRS {len(prs)}, RRS {len(rrs)})")
             ed = args.eval_dir or args.output_dir
             os.makedirs(ed, exist_ok=True)
             mp = os.path.join(ed, 'metrics_by_epoch.csv')
             new = not os.path.exists(mp)
             with open(mp, 'a') as fh:
                 if new:
-                    fh.write('epoch,auc,best_f1,threshold\n')
-                fh.write(f'{epoch},{auc_v:.6f},{f1_v:.6f},{thr_v:.6f}\n')
+                    fh.write('epoch,auc,best_f1\n')
+                fh.write(f'{epoch},{auc_v:.6f},{f1_v:.6f}\n')
 
             # Per-epoch ROC + Best-F1 figure, rendered from the probabilities we
             # just computed (no extra forward pass).

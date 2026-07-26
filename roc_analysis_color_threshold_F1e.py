@@ -53,9 +53,8 @@ precision = TP / (TP + FP)
 recall = TP / (TP + FN)
 
 
-You can adjust the decimal percision by changing ".6f" to desired value in  f'Best F1 Threshold: {best_thresh:.6f}'
-
-
+Note: the Best-F1 *threshold* itself is not reported in the legend/print
+output — see the comment above the best-F1 scan in main() for why.
 """
 #
 
@@ -126,21 +125,25 @@ def main():
     tpr = tpr[valid_thresholds_idxs]
     thresholds = thresholds[valid_thresholds_idxs]
 
-    # Compute best F1 score across thresholds
+    # Best F1, scanned over EVERY unique probability value — not just the
+    # thresholds `thresholds` above, which sklearn's drop_intermediate=True
+    # has pruned to the ROC-curve's vertices. Matches train_ppiDCE.py's
+    # _auc_bestf1 and LES-wrapper.py's run_roc_analysis_internal.
+    #
+    # The threshold itself is NOT reported (legend/print below): for a
+    # non-discriminating (or early-training) checkpoint, the F1-optimal
+    # threshold collapses toward the minimum score ("predict everything
+    # positive") because that's tied for best F1 under a balanced PRS/RRS
+    # reference set — a degenerate diagnostic, not a meaningful decision
+    # boundary. See LES-wrapper.md's "v2 change" note, which dropped
+    # threshold reporting from every other output in this pipeline for the
+    # same reason.
     best_f1 = -1.0
-    best_thresh = None
-    best_idx = None
-    for i, thresh in enumerate(thresholds):
+    for thresh in np.unique(probs):
         predicted_labels = (probs >= thresh).astype(int)
-        current_f1 = f1_score(labels, predicted_labels)
+        current_f1 = f1_score(labels, predicted_labels, zero_division=0)
         if current_f1 > best_f1:
             best_f1 = current_f1
-            best_thresh = thresh
-            best_idx = i
-
-    # Retrieve FPR and TPR for the best threshold
-    best_fpr = fpr[best_idx]
-    best_tpr = tpr[best_idx]
 
     # Set global font
     plt.rcParams['font.family'] = 'Arial'
@@ -176,9 +179,6 @@ def main():
                      textcoords='offset points', xytext=(0, 10),
                      ha='center', fontsize=12, color='blue')
 
-    # No red scatter point for the best threshold
-    # ax.scatter(best_fpr, best_tpr, color='red', s=100, zorder=5)
-
     # Set axis limits and labels
     ax.set_xlim([0.0, 1.0])
     ax.set_ylim([0.0, 1.05])
@@ -191,9 +191,7 @@ def main():
     ax.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
 
     # Add legend with 3 decimal places
-    legend_text = (f'ROC curve (AUC = {roc_auc:.3f}, '
-                   f'Best F1 = {best_f1:.3f}, '
-                   f'Best F1 Threshold = {best_thresh:.3f})')
+    legend_text = f'ROC curve (AUC = {roc_auc:.3f}, Best F1 = {best_f1:.3f})'
     ax.legend([legend_text], loc="lower right", fontsize=12)
 
     # Adjust layout
@@ -204,7 +202,7 @@ def main():
     plt.show()
 
     print(f"ROC curve saved to {args.output_file}")
-    print(f"Best F1 Score: {best_f1:.3f} at threshold {best_thresh:.3f}")
+    print(f"Best F1 Score: {best_f1:.3f}")
 
 if __name__ == '__main__':
     main()
