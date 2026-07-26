@@ -90,8 +90,11 @@ On V3-1's 12-layer run, homodimer PRS pairs scored consistently much closer to
 the RRS (non-interacting) baseline than heterodimer PRS pairs did at every
 epoch (e.g. epoch 1: homodimer mean 0.367, heterodimer mean 0.570, RRS mean
 0.282) — the model treats them as the hard case, and they drag the combined
-AUC/Best-F1 down. `filter_homodimers.py` drops these rows; `run_replicate.sh`
-runs `LES-wrapper.py` both ways automatically (see below).
+AUC/Best-F1 down. [`MED4_PRS-RRS_no_homodimers/`](MED4_PRS-RRS_no_homodimers)
+is the pre-built, homodimer-depleted counterpart to `MED4_PRS-RRS/` (same
+headerless `seq1,seq2` format, regeneratable with its own
+`make_no_homodimers.py`); `run_replicate.sh` runs `LES-wrapper.py` against
+both directories automatically (see below).
 
 ### Train/val split
 
@@ -134,7 +137,6 @@ results/dce_V3-k_scratch12L_ml1024/
 │   ├── metrics_by_epoch.csv                # AUC, Best-F1 per epoch (full PRS/RRS, homodimers included)
 │   ├── epoch{N}_PRS-RRS_probabilities.csv  # probabilities behind each ROC figure
 │   └── roc_epoch{N}.png                    # per-epoch ROC + Best-F1 figure
-├── PRS-V3-k_no-homodimers.csv, RRS-V3-k_no-homodimers.csv   # filter_homodimers.py output
 ├── LES/                                    # LES-wrapper.py — full PRS/RRS (homodimers included)
 │   ├── summary_table.csv                   # per-epoch AUC/Best-F1 + a final LES row
 │   ├── epoch_{N}/{PRS,RRS}_epoch{N}_probabilities.csv, ROC/dist plots
@@ -161,8 +163,8 @@ Two layers of "results after each epoch", both built directly into
    checkpoint via `inference_ppiDCE.py` and produces the full LES analysis
    (ROC-AUC / Best-F1 trajectories, LES = area under each trajectory,
    PRS-vs-RRS probability-distribution violins, `summary_table.csv`) **twice**:
-   once on the full PRS/RRS set (`LES/`), once with homodimer pairs excluded
-   from both (`LES_no_homodimers/`, via `filter_homodimers.py`).
+   once on `MED4_PRS-RRS/` (`LES/`), once on the pre-built homodimer-depleted
+   `MED4_PRS-RRS_no_homodimers/` (`LES_no_homodimers/`).
 
 `inference_ppiDCE.py`'s output columns (`seq1, seq2, Prediction,
 Probability_Friends, Probability_Enemies`) match the ppiYYD / ppiBTEP
@@ -201,10 +203,10 @@ consistently the harder case it hasn't learned to separate from RRS.
 >    results/dce_V3-k_scratch12L_ml1024/eval` for per-epoch AUC/Best-F1/ROC.
 >    Report `metrics_by_epoch.csv` after the run.
 > 3. Run `LES-wrapper.py` on the full `MED4_PRS-RRS/PRS-V3-k.csv` /
->    `RRS-V3-k.csv` into `results/dce_V3-k_scratch12L_ml1024/LES`, and again
->    after filtering homodimer pairs with `filter_homodimers.py` into
->    `results/dce_V3-k_scratch12L_ml1024/LES_no_homodimers` (`--num_layers 12
->    --max_length 1024 --include_final` both times).
+>    `RRS-V3-k.csv` into `results/dce_V3-k_scratch12L_ml1024/LES`, and again on
+>    the pre-built `MED4_PRS-RRS_no_homodimers/PRS-V3-k.csv` /
+>    `RRS-V3-k.csv` into `results/dce_V3-k_scratch12L_ml1024/LES_no_homodimers`
+>    (`--num_layers 12 --max_length 1024 --include_final` both times).
 >
 > This is exactly what `REP=V3-k ./run_replicate.sh` automates (or
 > `./run_all_replicates.sh` for several replicates in sequence) — you may just
@@ -235,6 +237,6 @@ consistently the harder case it hasn't learned to separate from RRS.
 - `make_split.py` — deterministic, label-stratified train/val split.
 - `train_ppiDCE.py` — training loop, warmup+cosine LR, per-epoch PRS/RRS eval + ROC figure.
 - `roc_analysis_color_threshold_F1e.py` — standalone ROC + Best-F1 plot from a probability CSV.
-- `filter_homodimers.py` — drops `seq1 == seq2` rows from a PRS/RRS CSV.
+- `MED4_PRS-RRS_no_homodimers/` — homodimer-depleted PRS/RRS counterpart to `MED4_PRS-RRS/`; regenerate with its own `make_no_homodimers.py`.
 - `inference_ppiDCE.py` — batch inference (`seq1, seq2, Prediction, Probability_Friends, Probability_Enemies`).
 - `LES-wrapper.py` / `LES-wrapper.md` — end-of-run LES analysis across all checkpoints.

@@ -3,12 +3,12 @@
 # the ppiYYD warmup+cosine LR recipe (see train-recipe.md), a 90/10 train/val
 # split (val sampled but kept in train — recommended for a small training set
 # like this one), per-epoch ROC/Best-F1 analysis, and two final LES-wrapper
-# passes over every saved checkpoint — one on the full PRS/RRS set, one with
-# homodimer pairs (seq1 == seq2) excluded from both. Homodimers are ~22-32% of
-# every V3 replicate's PRS set and score much closer to the RRS baseline than
-# heterodimers do (checked across all 10 replicates, 2026-07-26), so the two
-# LES runs read differently — see train-recipe.md for the numbers this
-# produced on V3-1.
+# passes over every saved checkpoint — one on the full PRS/RRS set, one on the
+# homodimer-depleted set in MED4_PRS-RRS_no_homodimers/ (see its README.md).
+# Homodimers are ~22-32% of every V3 replicate's PRS set and score much closer
+# to the RRS baseline than heterodimers do (checked across all 10 replicates,
+# 2026-07-26), so the two LES runs read differently — see train-recipe.md for
+# the numbers this produced on V3-1.
 #
 # Formerly run_V3-1.sh; renamed once REP became the standard way to drive any
 # replicate (REP=V3-2, V3-3, ...). See run_all_replicates.sh to run several.
@@ -39,8 +39,8 @@ fi
 TRAIN_SRC="MED4_V3_Trains/depleted_training_set-${REP}.csv"
 PRS="MED4_PRS-RRS/PRS-${REP}.csv"
 RRS="MED4_PRS-RRS/RRS-${REP}.csv"
-PRS_NOHOMO="$OUT/PRS-${REP}_no-homodimers.csv"
-RRS_NOHOMO="$OUT/RRS-${REP}_no-homodimers.csv"
+PRS_NOHOMO="MED4_PRS-RRS_no_homodimers/PRS-${REP}.csv"
+RRS_NOHOMO="MED4_PRS-RRS_no_homodimers/RRS-${REP}.csv"
 
 export HF_HUB_OFFLINE=1
 export MPLBACKEND=Agg
@@ -93,8 +93,6 @@ echo "=== ppiDCE ${REP} LES (with homodimers) DONE $(date) ==="
 
 echo
 echo "=== ppiDCE ${REP} LES (no homodimers) START $(date) ==="
-"$PY" filter_homodimers.py --input "$PRS" --output "$PRS_NOHOMO"
-"$PY" filter_homodimers.py --input "$RRS" --output "$RRS_NOHOMO"
 "$PY" LES-wrapper.py \
     --checkpoint_dir "$OUT" \
     --prs_file "$PRS_NOHOMO" \
