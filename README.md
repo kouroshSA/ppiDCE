@@ -115,6 +115,14 @@ python train_ppiDCE.py \
 - `--add_layers N`: Append extra transformer layers on top
 - `--checkpoint path.pth`: Resume from a saved checkpoint
 - `--suppress_warnings`: Suppress tokenizer truncation warnings
+- `--eval_prs path.csv` / `--eval_rrs path.csv`: PRS/RRS reference CSVs
+  (`seq1,seq2`) scored after every epoch for AUC + Best-F1, appended to
+  `metrics_by_epoch.csv` in `--eval_dir` (default `--output_dir`)
+- `--roc_script path.py`: with `--eval_prs`/`--eval_rrs` active, render a
+  ROC + Best-F1 figure after each epoch (default: `roc_analysis_color_threshold_F1e.py`
+  next to `train_ppiDCE.py`; pass `none` to disable)
+- `--lr_schedule {constant,warmup_cosine}`: `warmup_cosine` ramps 0->peak over
+  `--warmup_ratio`/`--warmup_steps` then cosine-decays to `--min_lr`
 
 ### Quick start: fetch the checkpoint from Hugging Face
 

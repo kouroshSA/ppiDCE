@@ -14,6 +14,8 @@ beyond PyTorch.)
 import argparse
 import math
 import os
+import subprocess
+import sys
 import torch
 import torch.nn as nn
 import pandas as pd
@@ -86,7 +88,27 @@ def parse_args():
                         help='RRS holdout CSV (seq1,seq2) scored after each epoch for AUC/Best-F1.')
     parser.add_argument('--eval_dir',         type=str, default=None,
                         help='Directory for metrics_by_epoch.csv (default: output_dir).')
+    parser.add_argument('--roc_script',       type=str, default=None,
+                        help='Path to roc_analysis_color_threshold_F1e.py. When set (and the '
+                             'PRS/RRS eval hook is active) a ROC + Best-F1 figure is rendered '
+                             'after every epoch from that epoch\'s probabilities. Defaults to '
+                             'the copy sitting next to this script; pass "none" to disable.')
     return parser.parse_args()
+
+
+def _write_prob_csv(path, prs, rrs):
+    """Write the 2-column PRS/RRS probability CSV that roc_analysis_*.py consumes.
+
+    Columns are ragged-tolerant: the reader takes column 0 as a PRS probability
+    and column 1 as an RRS probability, skipping empties, so unequal set sizes
+    are fine.
+    """
+    with open(path, 'w') as fh:
+        fh.write('PRS,RRS\n')
+        for i in range(max(len(prs), len(rrs))):
+            p = f'{prs[i]:.6f}' if i < len(prs) else ''
+            r = f'{rrs[i]:.6f}' if i < len(rrs) else ''
+            fh.write(f'{p},{r}\n')
 
 
 def _read_pairs(csv_path):
@@ -272,6 +294,18 @@ def main():
 
     os.makedirs(args.output_dir, exist_ok=True)
 
+    # Resolve the per-epoch ROC/F1 plotting script (default: alongside this file).
+    roc_script = args.roc_script
+    if roc_script is None:
+        cand = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            'roc_analysis_color_threshold_F1e.py')
+        roc_script = cand if os.path.exists(cand) else None
+    elif roc_script.lower() == 'none':
+        roc_script = None
+    if roc_script and not os.path.exists(roc_script):
+        print(f"WARNING: --roc_script {roc_script} not found; per-epoch ROC figures disabled")
+        roc_script = None
+
     # Training & validation
     for epoch in range(1, args.epochs + 1):
         print(f"\nEpoch {epoch}/{args.epochs}")
@@ -321,6 +355,21 @@ def main():
                 if new:
                     fh.write('epoch,auc,best_f1,threshold\n')
                 fh.write(f'{epoch},{auc_v:.6f},{f1_v:.6f},{thr_v:.6f}\n')
+
+            # Per-epoch ROC + Best-F1 figure, rendered from the probabilities we
+            # just computed (no extra forward pass).
+            prob_csv = os.path.join(ed, f'epoch{epoch}_PRS-RRS_probabilities.csv')
+            _write_prob_csv(prob_csv, prs, rrs)
+            if roc_script:
+                try:
+                    subprocess.run(
+                        [sys.executable, roc_script, '--input_csv', prob_csv,
+                         '--output_file', os.path.join(ed, f'roc_epoch{epoch}.png')],
+                        check=True, capture_output=True, text=True)
+                    print(f"[epoch {epoch}] ROC figure: {os.path.join(ed, f'roc_epoch{epoch}.png')}")
+                except subprocess.CalledProcessError as e:
+                    print(f"[epoch {epoch}] WARNING: ROC script failed: {e.stderr.strip()}")
+
             model.train()
 
     # Final save
