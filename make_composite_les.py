@@ -286,10 +286,22 @@ def violins(run_dirs, epochs, out, pos_col):
 
 
 # -----------------------------------------------------------------------------
+def _condition_note(les_subdir):
+    """Human-readable description of the reference set behind a --les_subdir,
+    for the generated legend files."""
+    if les_subdir == "LES":
+        return "the full PRS/RRS reference sets (homodimer pairs included)"
+    if les_subdir == "LES_no_homodimers":
+        return "homodimer-depleted PRS/RRS (seq1 == seq2 pairs excluded from both)"
+    if les_subdir.startswith("LES_"):
+        cond = les_subdir[len("LES_"):]
+        return (f"the random-substituted PRS/RRS control set ('{cond}' — see "
+                f"PRS-RRS_random_controls/README.md for what's substituted)")
+    return f"the '{les_subdir}' reference set"
+
+
 def write_legends(out, n_replicates, les_subdir):
-    homo_note = ("homodimer pairs (seq1 == seq2) are excluded from both PRS and RRS"
-                 if les_subdir == "LES_no_homodimers" else
-                 "the full PRS/RRS reference sets (homodimer pairs included)")
+    homo_note = _condition_note(les_subdir)
     traj = f"""# Composite LES trajectories — legend ({les_subdir})
 
 `composite_trajectory_AUC.*` and `composite_trajectory_F1.*` show the
@@ -329,16 +341,23 @@ def main():
                     help="Directory containing the per-replicate results dirs (default: results).")
     ap.add_argument("--replicate_glob", default="dce_V3-*_scratch12L_ml1024",
                     help="Glob for the per-replicate dirs under --parent.")
-    ap.add_argument("--les_subdir", default="LES", choices=["LES", "LES_no_homodimers"],
-                    help="Which LES-wrapper run to composite (default: LES, the full PRS/RRS set).")
+    ap.add_argument("--les_subdir", default="LES",
+                    help="Which LES-wrapper run to composite, e.g. LES, LES_no_homodimers, "
+                         "LES_ps1_random, LES_ps2_random, LES_ps1-ps2_random "
+                         "(default: LES, the full PRS/RRS set).")
     ap.add_argument("--out", default=None,
-                    help="Output directory (default: <parent>/composite or "
-                         "<parent>/composite_no_homodimers, depending on --les_subdir).")
+                    help="Output directory (default: <parent>/composite for --les_subdir LES, "
+                         "else <parent>/composite_<suffix> stripping a leading 'LES_').")
     ap.add_argument("--pos_col", default="Probability_Friends",
                     help="Positive-class probability column name (default: Probability_Friends).")
     args = ap.parse_args()
 
-    default_out = "composite" if args.les_subdir == "LES" else "composite_no_homodimers"
+    if args.les_subdir == "LES":
+        default_out = "composite"
+    elif args.les_subdir.startswith("LES_"):
+        default_out = "composite_" + args.les_subdir[len("LES_"):]
+    else:
+        default_out = "composite_" + args.les_subdir
     out = args.out or os.path.join(args.parent, default_out)
     os.makedirs(out, exist_ok=True)
 
