@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # run_homodimers_only_les.sh — LES-wrapper analysis of the already-trained V3
 # replicate checkpoints against the homodimers-only PRS
-# (PRS-RRS_homodimers_only/), paired with the full RRS — there are no RRS
+# (V3_PRS-RRS/PRS-RRS_homodimers_only/), paired with the full RRS — there are no RRS
 # homodimers to filter to, so the full 100-pair random set is used unchanged
-# (see PRS-RRS_homodimers_only/NOTE_RRS_homodimers.md).
+# (see V3_PRS-RRS/PRS-RRS_homodimers_only/NOTE_RRS_homodimers.md). Override with SRC=.
 #
 # Pure evaluation — no training. Results land under Results_Homodimers_only/,
 # mirroring results/'s per-replicate layout (dce_V3-k_scratch12L_ml1024/),
@@ -22,7 +22,7 @@ PY="${PY:-/home/ksa/anaconda3/envs/esm2/bin/python}"
 NUM_LAYERS="${NUM_LAYERS:-12}"
 MAX_LENGTH="${MAX_LENGTH:-1024}"
 BATCH_SIZE="${BATCH_SIZE:-4}"
-SRC="PRS-RRS_homodimers_only"
+SRC="${SRC:-V3_PRS-RRS/PRS-RRS_homodimers_only}"
 OUT_ROOT="Results_Homodimers_only"
 
 export HF_HUB_OFFLINE=1
