@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # run_random_controls_les.sh — LES-wrapper analysis of the already-trained V3
 # replicate checkpoints against the random-substituted PRS/RRS control sets
-# (PRS-RRS_random_controls/), for all three randomization schemes:
+# (V3_PRS-RRS/random_controls/), for all three randomization schemes:
 #
 #   ps1      — partner 1 sequence randomly substituted
 #   ps2      — partner 2 sequence randomly substituted
@@ -25,7 +25,7 @@ PY="${PY:-/home/ksa/anaconda3/envs/esm2/bin/python}"
 NUM_LAYERS="${NUM_LAYERS:-12}"
 MAX_LENGTH="${MAX_LENGTH:-1024}"
 BATCH_SIZE="${BATCH_SIZE:-4}"
-SRC="PRS-RRS_random_controls"
+SRC="${SRC:-V3_PRS-RRS/random_controls}"
 OUT_ROOT="Results_random_controls"
 
 export HF_HUB_OFFLINE=1
