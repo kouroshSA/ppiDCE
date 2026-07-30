@@ -887,8 +887,11 @@ def main():
     if results:
         final_result = results[-1]
         print(f"\nFinal Checkpoint Performance:")
-        print(f"  AUC:       {final_result['AUC']:.4f}")
-        print(f"  Best F1:   {final_result['Best_F1']:.4f}")
+        if final_result.get('AUC') is not None:
+            print(f"  AUC:       {final_result['AUC']:.4f}")
+            print(f"  Best F1:   {final_result['Best_F1']:.4f}")
+        else:
+            print("  AUC/Best-F1: n/a (random control — metrics skipped)")
 
     print(f"\nOutputs saved to: {args.output_dir}")
     print(f"{'='*60}\n")
