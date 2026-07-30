@@ -392,14 +392,15 @@ def _epoch_cmap(n):
     return [cmap(i / max(1, n - 1)) for i in range(n)]
 
 
-def plot_all_checkpoints(per_epoch, ensemble_label, out_dir):
+def plot_all_checkpoints(per_epoch, ensemble_label, out_dir, smoothed=False):
     epochs = [r['epoch'] for r in per_epoch]
     colors = _epoch_cmap(len(epochs))
     fig, ax = plt.subplots(figsize=(9, 8))
     for r, c in zip(per_epoch, colors):
         mean_auc = r['aucs'].mean()
-        mean_tpr = r['tprs_raw'].mean(axis=0)
-        sd_tpr = r['tprs_raw'].std(axis=0, ddof=0)
+        tprs = np.array([gaussian_smooth(t, SMOOTH_SIGMA) for t in r['tprs_raw']]) if smoothed else r['tprs_raw']
+        mean_tpr = tprs.mean(axis=0)
+        sd_tpr = tprs.std(axis=0, ddof=0)
         lo, hi = np.clip(mean_tpr - sd_tpr, 0, 1), np.clip(mean_tpr + sd_tpr, 0, 1)
         ax.fill_between(GRID, lo, hi, color=c, alpha=0.15)
         ax.plot(GRID, mean_tpr, color=c, lw=2.2,
@@ -407,17 +408,20 @@ def plot_all_checkpoints(per_epoch, ensemble_label, out_dir):
     ax.plot([0, 1], [0, 1], color='gray', ls='--')
     ax.set_xlim(0, 1); ax.set_ylim(0, 1)
     ax.set_xlabel('False positive rate'); ax.set_ylabel('True positive rate')
-    ax.set_title(f"Mean ROC of the {len(per_epoch[0]['aucs'])}-model V3 ensemble\nacross training epochs")
+    title_suffix = " (smoothed)" if smoothed else ""
+    ax.set_title(f"Mean ROC of the {len(per_epoch[0]['aucs'])}-model V3 ensemble\n"
+                 f"across training epochs{title_suffix}")
     ax.text(0.03, 0.97, f"shading: ± 1 SD across the {len(per_epoch[0]['aucs'])} models",
             color='0.4', fontsize=10, ha='left', va='top')
     ax.legend(title="epoch (mean AUC)", loc='lower right', ncol=2, fontsize=9, title_fontsize=10)
     fig.tight_layout()
+    fname = "composite_ROC_all_checkpoints" + ("_smoothed" if smoothed else "")
     for ext in ('png', 'pdf'):
-        fig.savefig(os.path.join(out_dir, f"composite_ROC_all_checkpoints.{ext}"), dpi=PUB_DPI)
+        fig.savefig(os.path.join(out_dir, f"{fname}.{ext}"), dpi=PUB_DPI)
     plt.close(fig)
 
 
-def plot_checkpoint_grid(per_epoch, ensemble_label, out_dir):
+def plot_checkpoint_grid(per_epoch, ensemble_label, out_dir, smoothed=False):
     n_ep = len(per_epoch)
     ncols = 5
     nrows = int(np.ceil(n_ep / ncols))
@@ -426,8 +430,9 @@ def plot_checkpoint_grid(per_epoch, ensemble_label, out_dir):
     for i, r in enumerate(per_epoch):
         ax = axes[i // ncols][i % ncols]
         mean_auc, sd_auc = r['aucs'].mean(), r['aucs'].std(ddof=0)
-        mean_tpr = r['tprs_raw'].mean(axis=0)
-        sd_tpr = r['tprs_raw'].std(axis=0, ddof=0)
+        tprs = np.array([gaussian_smooth(t, SMOOTH_SIGMA) for t in r['tprs_raw']]) if smoothed else r['tprs_raw']
+        mean_tpr = tprs.mean(axis=0)
+        sd_tpr = tprs.std(axis=0, ddof=0)
         lo, hi = np.clip(mean_tpr - sd_tpr, 0, 1), np.clip(mean_tpr + sd_tpr, 0, 1)
         ax.fill_between(GRID, lo, hi, color=MEAN_C, alpha=0.20)
         ax.plot(GRID, mean_tpr, color=MEAN_C, lw=2)
@@ -437,12 +442,15 @@ def plot_checkpoint_grid(per_epoch, ensemble_label, out_dir):
                 fontsize=10, transform=ax.transAxes)
     for j in range(n_ep, nrows * ncols):
         axes[j // ncols][j % ncols].axis('off')
-    fig.suptitle(f"Mean ROC ± 1 SD of the {len(per_epoch[0]['aucs'])}-model V3 ensemble, per epoch", fontsize=16)
+    title_suffix = " (smoothed)" if smoothed else ""
+    fig.suptitle(f"Mean ROC ± 1 SD of the {len(per_epoch[0]['aucs'])}-model V3 ensemble, "
+                 f"per epoch{title_suffix}", fontsize=16)
     fig.supxlabel('False positive rate')
     fig.supylabel('True positive rate')
     fig.tight_layout(rect=[0.01, 0.01, 1, 0.96])
+    fname = "composite_ROC_checkpoint_grid" + ("_smoothed" if smoothed else "")
     for ext in ('png', 'pdf'):
-        fig.savefig(os.path.join(out_dir, f"composite_ROC_checkpoint_grid.{ext}"), dpi=PUB_DPI)
+        fig.savefig(os.path.join(out_dir, f"{fname}.{ext}"), dpi=PUB_DPI)
     plt.close(fig)
 
 
@@ -558,10 +566,12 @@ def main():
         print("Aggregate ROC views:")
         write_all_checkpoints_summary(per_epoch_raw, roc_dir)
         plot_auc_vs_epoch(per_epoch_raw, args.ensemble_label, roc_dir)
-        plot_all_checkpoints(per_epoch_raw, args.ensemble_label, roc_dir)
-        plot_checkpoint_grid(per_epoch_raw, args.ensemble_label, roc_dir)
-        print(f"  wrote all_checkpoints_summary.csv, AUC_vs_epoch, composite_ROC_all_checkpoints, "
-              f"composite_ROC_checkpoint_grid -> {roc_dir}")
+        plot_all_checkpoints(per_epoch_raw, args.ensemble_label, roc_dir, smoothed=False)
+        plot_all_checkpoints(per_epoch_raw, args.ensemble_label, roc_dir, smoothed=True)
+        plot_checkpoint_grid(per_epoch_raw, args.ensemble_label, roc_dir, smoothed=False)
+        plot_checkpoint_grid(per_epoch_raw, args.ensemble_label, roc_dir, smoothed=True)
+        print(f"  wrote all_checkpoints_summary.csv, AUC_vs_epoch, composite_ROC_all_checkpoints"
+              f"(+_smoothed), composite_ROC_checkpoint_grid(+_smoothed) -> {roc_dir}")
 
         print("Trajectories (AUC/F1, matching make_composite_les.py):")
         les_epochs = epochs
